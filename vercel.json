@@ -1,1 +1,11 @@
-{"$schema":"https://openapi.vercel.sh/vercel.json","framework":"flask","functions":{"app.py":{"maxDuration":60,"excludeFiles":"{test_*.py,README.md,CONNECT_BOT.cmd,connect_bot.py}"}}}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "flask",
+  "functions": {
+    "app.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{test_*.py,README.md,CONNECT_BOT.cmd,connect_bot.py}"
+    }
+  },
+  "buildCommand": "python setup_server.py"
+}

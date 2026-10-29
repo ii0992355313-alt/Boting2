@@ -9,7 +9,7 @@
 3. Подключите PostgreSQL: Storage → Marketplace → Neon или другой Postgres-провайдер → подключить к проекту. Выберите подходящий вам тариф. Код читает DATABASE_URL, а также POSTGRES_URL. Используйте pooled connection string с SSL из панели провайдера. SQLite и JSON-файлы не подходят для хранения данных на Vercel.
 4. Vercel → Settings → Environment Variables → добавьте переменные ниже в Production. Токен вводите только там, а не в исходник и не в чат. После этого сделайте Production Redeploy.
 5. Остановите старый бот, запущенный на компьютере. В Settings → Deployment Protection убедитесь, что production-адрес /webhook доступен Telegram без входа в Vercel. Защита самого обработчика уже встроена: секретный заголовок Telegram. Не отключайте защиту других проектов.
-6. Запустите CONNECT_BOT.cmd на компьютере друга. Укажите адрес production-проекта и тот же WEBHOOK_SECRET, который сохранили в Vercel. Этот файл не требует установки библиотек; нужен Python. Он создаёт таблицы, подключает webhook и проверяет адрес в Telegram.
+6. Сделайте Production Redeploy. Команда сборки python setup_server.py автоматически создаст таблицы и подключит webhook к Telegram. На ПК запускать ничего не нужно. Дождитесь Ready; в Build Logs должна быть строка Telegram webhook connected. Если переменные неверны, сборка остановится с сообщением об ошибке. Убедитесь, что в Settings нет старой пользовательской Build Command: используется команда из vercel.json.
 7. Отправьте боту /start в Telegram. Для проверки оплаты нажмите кнопку покупки PRO и завершите оплату Stars самостоятельно. Компьютер после подключения можно выключить.
 
 ## Переменные Vercel
@@ -37,9 +37,9 @@
 - Откройте https://имя-проекта.vercel.app/health: ожидается JSON с ok=true. Ошибка базы означает, что нужно проверить PostgreSQL и переменные Production.
 - Ошибка 404: файлы или Root Directory указаны неверно. app.py должен быть точкой входа Flask.
 - Ошибка 403 в CONNECT_BOT.cmd: проверьте WEBHOOK_SECRET (не BOT_TOKEN) и доступ production-развёртывания без авторизации Vercel.
-- После изменения переменных требуется Redeploy, затем повторный запуск CONNECT_BOT.cmd.
+- После изменения переменных требуется Production Redeploy: подключение Telegram выполнится автоматически.
 - Ошибки Telegram пишутся в Runtime Logs Vercel и в /logs владельца без токенов. Коды 400/403 при модерации часто означают отсутствие у бота нужных прав.
-- Если другой скрипт вызывает deleteWebhook или getUpdates с этим же ботом, остановите его и снова запустите CONNECT_BOT.cmd.
+- Если другой скрипт вызывает deleteWebhook или getUpdates с этим же ботом, остановите его и сделайте Production Redeploy.
 - Чтобы читать сообщения в группе, выдайте боту права администратора. При необходимости проверьте /setprivacy в BotFather.
 
 ## Что исправлено
@@ -53,3 +53,7 @@ Webhook вместо бесконечного потока; внешняя по�
 Автоматические проверки: python -m pip install -r requirements.txt, затем python -m unittest -v test_server. Используется временная SQLite и имитация Telegram API. Реальный PostgreSQL, настройку аккаунта Vercel и оплату в Telegram нужно проверить после подключения. Токенов в архиве нет.
 
 Документация: https://vercel.com/docs/frameworks/backend/flask ; https://vercel.com/docs/marketplace-storage ; https://core.telegram.org/bots/api#setwebhook
+
+## Автоподключение при развёртывании
+
+setup_server.py запускается только при сборке Production в Vercel. В Preview и локально автоматическая регистрация отключена, чтобы тестовый адрес не перехватывал сообщения основного бота. SITE_URL должен указывать на постоянный production-домен. На время сборки Telegram может повторять доставку; оплаченные события не удаляются. Build Logs подтверждают регистрацию webhook, а реальная доставка проверяется отправкой /start после Ready. CONNECT_BOT.cmd оставлен только как необязательный инструмент диагностики и ручного переподключения. Ничего постоянно запускать на компьютере не нужно.

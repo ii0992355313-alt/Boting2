@@ -299,6 +299,16 @@ def authorized_setup():
     return bool(re.fullmatch(r'[A-Za-z0-9_-]{32,256}', secret)) and hmac.compare_digest(request.headers.get('Authorization',''), 'Bearer '+secret)
 
 
+def register_webhook(site):
+    ensure_schema()
+    me = telegram('getMe')
+    telegram('setWebhook', url=site+'/webhook', secret_token=os.environ['WEBHOOK_SECRET'], allowed_updates=['message','callback_query','pre_checkout_query'], max_connections=1, drop_pending_updates=False)
+    telegram('setMyCommands', commands=[{'command':'start','description':'Открыть меню'},{'command':'buy','description':'Купить PRO за Stars'},{'command':'status','description':'Моя подписка'},{'command':'help','description':'Команды и правила'},{'command':'paysupport','description':'Поддержка платежей'}])
+    info = telegram('getWebhookInfo')
+    with engine().begin() as conn: audit(conn, 'webhook_connected', site)
+    return dict(ok=info.get('url') == site+'/webhook', bot=me.get('username'), webhook=info.get('url'), pending=info.get('pending_update_count',0))
+
+
 @app.post('/connect')
 def connect():
     if not authorized_setup(): abort(403)
@@ -307,13 +317,7 @@ def connect():
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
         return jsonify(ok=False, error='Set SITE_URL to your production HTTPS domain, without a path'),400
     try:
-        ensure_schema()
-        me = telegram('getMe')
-        telegram('setWebhook', url=site+'/webhook', secret_token=os.environ['WEBHOOK_SECRET'], allowed_updates=['message','callback_query','pre_checkout_query'], max_connections=1, drop_pending_updates=False)
-        telegram('setMyCommands', commands=[{'command':'start','description':'Открыть меню'},{'command':'buy','description':'Купить PRO за Stars'},{'command':'status','description':'Моя подписка'},{'command':'help','description':'Команды и правила'},{'command':'paysupport','description':'Поддержка платежей'}])
-        info = telegram('getWebhookInfo')
-        with engine().begin() as conn: audit(conn, 'webhook_connected', site)
-        return jsonify(ok=info.get('url') == site+'/webhook', bot=me.get('username'), webhook=info.get('url'), pending=info.get('pending_update_count',0))
+        return jsonify(register_webhook(site))
     except Exception as exc:
         app.logger.error('Connection failed: %s',type(exc).__name__)
         return jsonify(ok=False,error='Cannot connect. Check BOT_TOKEN, PostgreSQL and Vercel runtime logs.'),503
